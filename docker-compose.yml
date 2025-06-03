@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql  # Service name works as hostname in Docker network
+      DB_PORT: 3306
+      DB_DATABASE: student_management
+      DB_USERNAME: smsuser
+      DB_PASSWORD: smspassword
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_DATABASE: student_management
+      MYSQL_USER: smsuser
+      MYSQL_PASSWORD: smspassword
+      MYSQL_ROOT_PASSWORD: rootpassword  # Strong password required
+      MYSQL_ROOT_HOST: '%'  # Allows root access from any host
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./sql/studentms.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "mysql", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+
+networks:
+  app-network:
+    driver: bridge

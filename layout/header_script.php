@@ -1,121 +1,123 @@
 <?php
+// Start output buffering at the VERY BEGINNING
+ob_start();
 
-session_start(); 
- 
-if( isset($_SESSION['user'])!="" ){
+// Then start the session
+session_start();
 
-include "config/config.php";
-$db=new database();
+// Check if user is logged in
+if(isset($_SESSION['user']) && !empty($_SESSION['user'])) {
+    // Include configuration files
+    include "config/config.php";
+    
+    // Initialize database connection with error handling
+    if(!class_exists('database')) {
+        die("Database class not found. Check config.php");
+    }
+    $db = new database();
+    
+    // Verify database connection
+    if(!$db || !method_exists($db, 'query')) {
+        die("Failed to initialize database connection");
+    }
 
-include 'script/program/program.php';
-include "script/site_content/site_content.php";
-include "script/payment/set_payment.php";
-include "tool/vendor/vendor/autoload.php";
-include 'script/theme/theme.php';
+    // Include all necessary files
+    $required_files = [
+        'script/program/program.php',
+        'script/site_content/site_content.php',
+        'script/payment/set_payment.php',
+        'tool/vendor/vendor/autoload.php',
+        'script/theme/theme.php',
+        'script/user/user.php'
+    ];
+    
+    foreach($required_files as $file) {
+        if(!file_exists($file)) {
+            error_log("Missing required file: $file");
+            continue;
+        }
+        include $file;
+    }
 
-include 'script/user/user.php';
-$id=$_SESSION['user'];
-$user_ob=new user($id);
+    // Initialize user object with validation
+    $id = $_SESSION['user'] ?? null;
+    if(!$id) {
+        header("Location: login.php");
+        exit;
+    }
 
-$user=$user_ob->get_user_info();
-$login_user=$user_ob->get_login_user();
+    $user_ob = new user($id);
+    if(!$user_ob) {
+        die("Failed to initialize user object");
+    }
 
-$user_id=$login_user['id'];
-$login_user_id=$login_user['id'];
-$user_permit=$login_user['permit'];
-$role=$login_user['permit'];
-$login_user_role=$role;
+    // Get user info with null checks
+    $user = $user_ob->get_user_info() ?? [];
+    $login_user = $user_ob->get_login_user() ?? ['id' => null, 'permit' => null];
 
-$ip = $_SERVER['REMOTE_ADDR'];
-$browser = $user_ob->get_browser($_SERVER['HTTP_USER_AGENT']);
+    // Set user variables with defaults
+    $user_id = $login_user['id'] ?? null;
+    $login_user_id = $login_user['id'] ?? null;
+    $user_permit = $login_user['permit'] ?? 'guest';
+    $role = $login_user['permit'] ?? 'guest';
+    $login_user_role = $role;
 
-$db->set_login_user($user_id,$ip,$browser);
+    // Track login activity
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $browser = $user_ob->get_browser($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown');
 
- 
-$site=new site_content();
+    if($user_id && method_exists($db, 'set_login_user')) {
+        $db->set_login_user($user_id, $ip, $browser);
+    }
 
+    // Initialize site content with check
+    if(!class_exists('site_content')) {
+        die("site_content class not found");
+    }
+    $site = new site_content();
 
-include 'script/subject/subject.php'; 
-$subject_ob=new subject();
-$subject=$subject_ob->get_subject_info();
+    // Include and initialize other components with checks
+    $components = [
+        'subject' => 'script/subject/subject.php',
+        'batch' => 'script/batch/batch.php',
+        'program' => 'script/program/program.php',
+        'student' => 'script/student/student.php',
+        'sms' => 'script/sms/sms.php',
+        'contest' => 'script/contest/contest.php',
+        'payment' => 'script/payment/payment.php',
+        'set_payment' => 'script/payment/set_payment.php',
+        'id_card' => 'script/id_card/id_card.php',
+        'attendence' => 'script/attendence/attendence.php',
+        'notice' => 'script/notice/notice.php',
+        'theme' => 'script/theme/theme.php',
+        'report' => 'script/report/report.php',
+        'account' => 'script/account/account.php',
+        'site_activity' => 'script/site_activity/site_activity.php',
+        'setting' => 'script/setting/setting.php',
+        'graph' => 'script/graph/graph.php',
+        'chat' => 'script/chat/chat.php',
+        'exam' => 'script/exam/exam_category.php'
+    ];
 
-include 'script/batch/batch.php';
-$batch_ob=new batch();
-$batch=$batch_ob->batch_info();
+    foreach($components as $var => $file) {
+        if(file_exists($file)) {
+            include $file;
+            if($var === 'sms') {
+                $$var = new $var($user_id);
+            } else {
+                $$var = new $var();
+            }
+        } else {
+            error_log("Component file missing: $file");
+            $$var = null;
+        }
+    }
 
-//include 'script/program/program.php';
-$program_ob=new program();
-$program=$program_ob->get_program_info();
-
-include 'script/student/student.php';
-$student_ob=new student();
-$student=$student_ob->get_student_info();
-
-include 'script/sms/sms.php';
-$sms=new sms($user_id);
-
-
-include 'script/contest/contest.php';
-$contest=new contest();
-
-include 'script/payment/payment.php';
-$payment=new payment();
-
-
-$set_payment_ob=new set_payment();
-$set_payment_info=$set_payment_ob->get_set_payment_list();
-
-include 'script/id_card/id_card.php';
-$id_card=new id_card();
-
-//include 'script/exam/exam.php';
-//$exam_ob=new exam();
-//$exam=$exam_ob->get_exam_info();
-
-//include 'script/result/result.php';
-//$result=new result();
-//$result_info=$result->get_result();
-
-
-include 'script/attendence/attendence.php';
-$attend_ob=new attendence();
-
-include 'script/notice/notice.php';
-$notice=new notice();
-$notice_info=$notice->get_notice_info(); 
-
-
-$theme=new theme();
-$theme_info=$theme->get_theme_info();
-
-include 'script/report/report.php';
-$report=new report();
-
-include 'script/account/account.php';
-$account=new account();
-
-include 'script/site_activity/site_activity.php';
-$site_activity=new site_activity();
-
-include 'script/setting/setting.php';
-$setting=new setting();
-
-include 'script/graph/graph.php';
-$graph=new graph();
-
-include 'script/chat/chat.php';
-$chat=new chat();
-
-include 'script/exam/exam_category.php';
-$exam=new exam();
-
-
-
+    // End output buffering and flush
+    ob_end_flush();
+} else {
+    // If not logged in, redirect properly
+    header("Location: login.php");
+    exit;
 }
-else{
-
-    echo "<script>window.location.href = 'login.php';</script>";
-
-}
-
 ?>

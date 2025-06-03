@@ -25,7 +25,7 @@
                         <div style="margin-top: 10px;"></div>
                         <b style="font-size: 13px;">Open Source</b><br/>
                         <b style="font-size: 25px;">Student Management System</b><br/>
-                        By <b style="font-size: 16px;"><a href="https://github.com/amirhamza05" style="color: #ffffff">Amir Hamza</a></b>
+                        By <b style="font-size: 16px;"><a href="https://github.com/amirhamza05" style="color: #ffffff">Zain Rauf</a></b>
                         <div style="margin-top: 35px;text-align: left;">
                             <ul style="font-size: 15px;">
                                 <li>Add Student Information</li>

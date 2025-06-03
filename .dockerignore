@@ -1,0 +1,9 @@
+.Trash
+.git
+.DS_Store
+node_modules
+vendor
+*.log
+storage/*.log
+bootstrap/cache/*
+.env
