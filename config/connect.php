@@ -53,14 +53,15 @@ class database {
         $sql = "SELECT * FROM setting";
         $info = $this->get_sql_array($sql);
         $img = "upload/custom_content/";
-        $this->site_name = $info[0]['option_value'];
-        $this->sort_name = $info[1]['option_value'];
-        $this->address = $info[2]['option_value'];
-        $this->phone = $info[5]['option_value'];
-        $this->email = $info[6]['option_value'];
-        $this->logo = $img . $info[4]['option_value'];
-        $this->main_logo = $img . $info[3]['option_value'];
-        $this->msg = "@" . $info[1]['option_value'];
+        // Check if $info has data to avoid undefined offset errors
+        $this->site_name = isset($info[0]['option_value']) ? $info[0]['option_value'] : 'Default Institute';
+        $this->sort_name = isset($info[1]['option_value']) ? $info[1]['option_value'] : 'Default';
+        $this->address = isset($info[2]['option_value']) ? $info[2]['option_value'] : '';
+        $this->phone = isset($info[5]['option_value']) ? $info[5]['option_value'] : '';
+        $this->email = isset($info[6]['option_value']) ? $info[6]['option_value'] : '';
+        $this->logo = isset($info[4]['option_value']) ? $img . $info[4]['option_value'] : '';
+        $this->main_logo = isset($info[3]['option_value']) ? $img . $info[3]['option_value'] : '';
+        $this->msg = isset($info[1]['option_value']) ? "@" . $info[1]['option_value'] : '@Default';
     }
 
     public function date_to_string($date){
@@ -78,12 +79,19 @@ class database {
     public function get_sql_array($sql){
         $info = array();
         $res = $this->select($sql);
-        while($row = mysqli_fetch_array($res)){
-            $sub = array();
-            $sub = $this->process_mysql_array($row);
-            array_push($info, $sub);
+        if ($res) {
+            while($row = mysqli_fetch_array($res)) {
+                $sub = $this->process_mysql_array($row);
+                array_push($info, $sub);
+            }
+            mysqli_free_result($res);
         }
         return $info;
+    }
+
+    // Added method to process MySQL row
+    public function process_mysql_array($row) {
+        return (array) $row; // Convert to associative array
     }
 
     // Handling SQL insert, update, delete operations
@@ -105,24 +113,24 @@ class database {
         return $sql;
     }
 
-    public function Update_sql($arr, $table){
+    public function update_sql($arr, $table){
         $sql = "";
         $sql .= "UPDATE " . $table . " SET ";
         $condition = "";
         $size = sizeof($arr);
         $c = 0;
         foreach ($arr as $key => $value) {
-            $condition .= $key . "='" . $value . "'";
+            $condition .= $key . "='" . mysqli_real_escape_string($this->conn, $value) . "'";
             if($c != $size - 1) $condition .= ",";
             $c++;
         }
         $sql .= $condition;
-        $sql .= " WHERE id=" . $arr['id'];
+        $sql .= " WHERE id=" . (int)$arr['id'];
         return $sql;
     }
 
     public function get_previous_data($table, $id){
-        $sql = "SELECT * FROM $table WHERE id=$id";
+        $sql = "SELECT * FROM $table WHERE id=" . (int)$id;
         $info = $this->get_sql_array($sql);
         if(isset($info[0])) return json_encode($info[0]);
     }
@@ -138,7 +146,7 @@ class database {
             $action_name = "Insert New " . $table;
             $sql = $this->insert_sql($info, $table);
         } else if($action == "delete"){
-            $id = $info['id'];
+            $id = (int)$info['id'];
             $action_name = "Delete " . $table;
             $sql = "DELETE FROM $table WHERE id=$id";
         }
@@ -184,8 +192,8 @@ class database {
 
         if($msg == "yes") $link = $this->action_link($table);
 
-        if($flag == 1 && $msg == "yes") echo "<script>alert('Successfully $action_name!');</script><script>document.location='$link.php'</script>";
-        else if($msg == "yes") echo "<script>alert('Failed...Please Again Try!');</script><script>document.location='$link.php'</script>";
+        if($flag == 1 && $msg == "yes") echo "<script>alert('Successfully $action_name!'); document.location='$link.php';</script>";
+        else if($msg == "yes") echo "<script>alert('Failed...Please Again Try!'); document.location='$link.php';</script>";
         if($flag == 0) echo("Error description: " . mysqli_error($this->conn));
         if($msg == "no") return $flag;
     }
